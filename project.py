@@ -1,95 +1,105 @@
-import math
-from tkinter import *
+import pygame
+import sys
 
-FPS = 60
-g_force = 9.8
+class Ball:
+    """Класс задает внешний вид и поведение шаров: расчитывет их энергию и обновляет положение"""
+    def __init__(self, index, num_balls, radius, color, string_length):
+        self.index = index
+        self.num_balls = num_balls
+        self.radius = radius
+        self.color = color
+        self.string_length = string_length
+        self.angle = 0
+        self.angular_velocity = 0
+        self.gravity = 0.005
+        self.terminal_velocity = 5.0
+        self.x = 0
 
+    def update(self):
+        self.angular_velocity += self.gravity * pygame.time.get_ticks() / 1000.0
+        self.angle += self.angular_velocity
 
-class Ball():
-    """Класс задает как будут выглядеть шары, где они будут находиться и как себя вести"""
+        angle_offset = 2 * pygame.math.Vector2(0, 1).rotate(self.angle).as_polar()[1] * self.index / self.num_balls
+        y_offset = self.string_length * pygame.math.Vector2(0, 1).rotate(self.angle + angle_offset).y
+        x_center = self.string_length // 2
+        self.x = x_center + y_offset
+
+        if abs(self.angular_velocity) > self.terminal_velocity:
+            self.angular_velocity = self.terminal_velocity * (self.angular_velocity / abs(self.angular_velocity))
+
+    def kinetic_energy(self):
+        return 0.5 * self.angular_velocity**2
+
+    def total_energy(self):
+        return self.kinetic_energy()
+
+    def draw(self, screen):
+        pygame.draw.circle(screen, self.color, (int(self.x), int(self.string_length)), self.radius)
+
+class NewtonsCradle:
+    """Класс объединяет шары в как бы один объект, проверяет коллизию объектов"""
+    def __init__(self, num_balls, ball_radius, string_length, width, height):
+        self.width = width
+        self.height = height
+        self.ball_radius = ball_radius
+        self.string_length = string_length
+        self.balls = [
+            Ball(i, num_balls, ball_radius, (0, 0, 255), self.string_length)
+            for i in range(num_balls)
+        ]
+
+    def update(self):
+        for i in range(len(self.balls)):
+            self.balls[i].update()
+            self.check_collision(i)
+
+    def check_collision(self, current_index):
+        for i in range(current_index + 1, len(self.balls)):
+            ball1 = self.balls[current_index]
+            ball2 = self.balls[i]
+
+            distance = abs(ball1.x - ball2.x)
+            if distance < (ball1.radius + ball2.radius):
+                ball1.angular_velocity, ball2.angular_velocity = ball2.angular_velocity, ball1.angular_velocity
+
+    def draw(self, screen):
+        screen.fill((255, 255, 255))
+        for ball in self.balls:
+            ball.draw(screen)
+
+class NewtonsCradleApp:
+    """Класс, в котором указаны функции запуска симуляции и указываются некоторые характеристики, которые используются в модели"""
     def __init__(self):
-        self.color = 'silver'
-        self.radius = 100
-        self.x1 = 280
-        self.y1 = 500
-        self.x2 = 480
-        self.y2 = 500
-        self.x3 = 680
-        self.y3 = 500
-        self.x4 = 880
-        self.y4 = 500
-        self.x5 = 1080
-        self.y5 = 500
-        self.image1 = None
-        self.image2 = None
-        self.image3 = None
-        self.image4 = None
-        self.image5 = None
+        pygame.init()
+        self.width = 800
+        self.height = 600
+        self.screen = pygame.display.set_mode((self.width, self.height))
+        pygame.display.set_caption("Newton's Cradle Simulation")
 
-    def draw(self):
-        global canvas
-        self.image1 = canvas.create_oval(self.x1 - self.radius, self.y1 - self.radius, self.x1 + self.radius,
-                                         self.y1 + self.radius, fill=self.color)
-        self.image2 = canvas.create_oval(self.x2 - self.radius, self.y2 - self.radius, self.x2 + self.radius,
-                                         self.y2 + self.radius, fill=self.color)
-        self.image3 = canvas.create_oval(self.x3 - self.radius, self.y3 - self.radius, self.x3 + self.radius,
-                                         self.y3 + self.radius, fill=self.color)
-        self.image4 = canvas.create_oval(self.x4 - self.radius, self.y4 - self.radius, self.x4 + self.radius,
-                                         self.y4 + self.radius, fill=self.color)
-        self.image5 = canvas.create_oval(self.x5 - self.radius, self.y5 - self.radius, self.x5 + self.radius,
-                                         self.y5 + self.radius, fill=self.color)
+        self.newtons_cradle = NewtonsCradle(num_balls=5, ball_radius=20, string_length=150, width=self.width, height=self.height)
+        self.clock = pygame.time.Clock()
 
+        self.running = False
 
-class Strings():
-    """Класс отрисовывает нити, которые соединяют подвес и шары"""
-    def __init__(self):
-        obj = Ball()
-        self.color = 'black'
-        self.x_ending1 = obj.x1   # это значение - x координата нижней части нити
-        self.y_ending1 = obj.y1   # это значение - y координата нижней части нити
-        self.x_begining1 = 280   # это значение - x координата верхней части нити
-        self.y_begining1 = 150   # это значение - y координата верхней части нити
-        self.x_ending2 = obj.x2
-        self.y_ending2 = obj.y2
-        self.x_begining2 = 480
-        self.y_begining2 = 150
-        self.x_ending3 = obj.x3
-        self.y_ending3 = obj.y3
-        self.x_begining3 = 680
-        self.y_begining3 = 150
-        self.x_ending4 = obj.x4
-        self.y_ending4 = obj.y4
-        self.x_begining4 = 880
-        self.y_begining4 = 150
-        self.x_ending5 = obj.x5
-        self.y_ending5 = obj.y5
-        self.x_begining5 = 1080
-        self.y_begining5 = 150
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
 
-    def draw(self):
-        global canvas
-        canvas.create_polygon((self.x_begining1 - 5, self.y_begining1), (self.x_begining1 + 5, self.y_begining1),
-                              (self.x_ending1 + 5, self.y_ending1), (self.x_ending1 - 5, self.y_ending1),
-                              fill=self.color)
+    def run_simulation(self):
+        self.running = True
+        while self.running:
+            self.handle_events()
 
+            self.newtons_cradle.update()
+            self.newtons_cradle.draw(self.screen)
 
-root = Tk()
+            pygame.display.flip()
+            self.clock.tick(60)
 
-root['bg'] = 'black'
-root.title('Newton Cradle')
-root.geometry('1400x750')
-root.resizable(width=False, height=False)
+        pygame.quit()
+        sys.exit()
 
-canvas = Canvas(root, width=1400, height=650)
-canvas.pack(side=TOP)
-
-frame = Frame(root, bg='grey', width=1400, height=100)
-frame.pack(side=BOTTOM)
-
-strings = Strings().draw()
-
-balls = Ball().draw()
-
-canvas.create_rectangle(180, 50, 1180, 150, fill='black')   # Отрисовка подвеса
-
-root.mainloop()
+if __name__ == "__main__":
+    app = NewtonsCradleApp()
+    app.run_simulation()
