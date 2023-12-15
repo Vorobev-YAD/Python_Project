@@ -1,71 +1,71 @@
 import pygame
 import sys
+import math
 
 class Ball:
-    """Класс задает внешний вид и поведение шаров: расчитывет их энергию и обновляет положение"""
-    def __init__(self, index, num_balls, radius, color, string_length):
-        self.index = index
-        self.num_balls = num_balls
+    """Класс задает внешний вид и поведение шаров, обновляет положение"""
+    def __init__(self, x, y, radius, color):
+        self.x = x
+        self.y = y
         self.radius = radius
         self.color = color
-        self.string_length = string_length
-        self.angle = 0
-        self.angular_velocity = 0
-        self.gravity = 0.005
-        self.terminal_velocity = 5.0
-        self.x = 0
+        self.velocity_y = 0
 
-    def update(self):
-        self.angular_velocity += self.gravity * pygame.time.get_ticks() / 1000.0
-        self.angle += self.angular_velocity
-
-        angle_offset = 2 * pygame.math.Vector2(0, 1).rotate(self.angle).as_polar()[1] * self.index / self.num_balls
-        y_offset = self.string_length * pygame.math.Vector2(0, 1).rotate(self.angle + angle_offset).y
-        x_center = self.string_length // 2
-        self.x = x_center + y_offset
-
-        if abs(self.angular_velocity) > self.terminal_velocity:
-            self.angular_velocity = self.terminal_velocity * (self.angular_velocity / abs(self.angular_velocity))
-
-    def kinetic_energy(self):
-        return 0.5 * self.angular_velocity**2
-
-    def total_energy(self):
-        return self.kinetic_energy()
+    def update(self, gravity, elapsed_time):
+        # Update velocity and position based on gravity
+        self.velocity_y += gravity * elapsed_time
+        self.y += self.velocity_y * elapsed_time
 
     def draw(self, screen):
-        pygame.draw.circle(screen, self.color, (int(self.x), int(self.string_length)), self.radius)
+        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
 
 class NewtonsCradle:
-    """Класс объединяет шары в как бы один объект, проверяет коллизию объектов"""
-    def __init__(self, num_balls, ball_radius, string_length, width, height):
+    """Класс создает сам объект, обновляет общую картину, в нем прописано поведение как шаров как системы"""
+    def __init__(self, num_balls, ball_radius, string_length, beam_height, gravity, width, height):
         self.width = width
         self.height = height
         self.ball_radius = ball_radius
         self.string_length = string_length
-        self.balls = [
-            Ball(i, num_balls, ball_radius, (0, 0, 255), self.string_length)
-            for i in range(num_balls)
-        ]
+        self.beam_height = beam_height
+        self.gravity = gravity
+        self.balls = [Ball(0, 0, ball_radius, (0, 0, 255)) for _ in range(num_balls)]
+        self.initial_positions = [(ball.x, ball.y) for ball in self.balls]
 
-    def update(self):
-        for i in range(len(self.balls)):
-            self.balls[i].update()
-            self.check_collision(i)
+        for i, ball in enumerate(self.balls):
+            # Первое число задает x первого шарика, последнее число в скобках задает расстояние между шарами
+            ball.x = 300 + i * (2 * self.ball_radius + 10)
+            ball.y = 100 - self.beam_height + self.string_length
 
-    def check_collision(self, current_index):
-        for i in range(current_index + 1, len(self.balls)):
-            ball1 = self.balls[current_index]
-            ball2 = self.balls[i]
+    def update(self, elapsed_time):
+        for ball in self.balls:
+            ball.update(self.gravity, elapsed_time)
 
-            distance = abs(ball1.x - ball2.x)
-            if distance < (ball1.radius + ball2.radius):
-                ball1.angular_velocity, ball2.angular_velocity = ball2.angular_velocity, ball1.angular_velocity
+        # Симуляция натяжения в нитях, пока недоделано, неправильно работает
+        for ball, initial_position in zip(self.balls, self.initial_positions):
+            distance = math.sqrt(
+                (ball.x - self.width // 2) ** 2 + (ball.y - (self.height // 2 - self.beam_height // 2)) ** 2)
+
+            scale_factor = self.string_length / distance
+            ball.x = self.width // 2 + (ball.x - self.width // 2) * scale_factor
+            ball.y = (self.height // 2 - self.beam_height // 2) + (
+                        ball.y - (self.height // 2 - self.beam_height // 2)) * scale_factor
 
     def draw(self, screen):
         screen.fill((255, 255, 255))
+
+        # Нити, соединяющте шары и балку
+        for i, ball in enumerate(self.balls):
+            line_start = (ball.x, ball.y)
+            line_end = (ball.x, 100 - self.beam_height  )
+            pygame.draw.line(screen, (0, 0, 0), line_start, line_end, 2)
+
+        # Рисуются сами шары
         for ball in self.balls:
             ball.draw(screen)
+
+        # Рисуется балка
+        pygame.draw.rect(screen, (0, 0, 0), (150, 100 - self.beam_height, 500, self.beam_height))
+
 
 class NewtonsCradleApp:
     """Класс, в котором указаны функции запуска симуляции и указываются некоторые характеристики, которые используются в модели"""
@@ -76,7 +76,8 @@ class NewtonsCradleApp:
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Newton's Cradle Simulation")
 
-        self.newtons_cradle = NewtonsCradle(num_balls=5, ball_radius=20, string_length=150, width=self.width, height=self.height)
+        self.gravity = 100
+        self.newtons_cradle = NewtonsCradle(num_balls=5, ball_radius=20, string_length=250, beam_height=10, gravity=self.gravity, width=self.width, height=self.height)
         self.clock = pygame.time.Clock()
 
         self.running = False
@@ -91,11 +92,12 @@ class NewtonsCradleApp:
         while self.running:
             self.handle_events()
 
-            self.newtons_cradle.update()
+            elapsed_time = self.clock.tick(60)
+
+            self.newtons_cradle.update(elapsed_time)
             self.newtons_cradle.draw(self.screen)
 
             pygame.display.flip()
-            self.clock.tick(60)
 
         pygame.quit()
         sys.exit()
