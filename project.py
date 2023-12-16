@@ -9,6 +9,7 @@ class Ball:
         self.y = y
         self.radius = radius
         self.color = color
+        self.velocity_x = 0
         self.velocity_y = 0
 
     def update(self, gravity, elapsed_time):
@@ -37,9 +38,17 @@ class NewtonsCradle:
             ball.y = 100 - self.beam_height + self.string_length
 
     def update(self, elapsed_time):
+
+        #По идее как-то так, но я не знаю как это правильно записать
+        for ball, initial_position in zip(self.balls, self.initial_positions):
+            ball.x += ball.velocity_x
+            ball.y += ball.velocity_y
+            angle = math.atan((ball.x - self.initial_positions[0])/(ball.y - self.initial_positions[1] + self.string_length))
+            ball.velocity_x -= (((ball.velocity_x)**2+(ball.velocity_y)**2)/self.string_length + self.gravity*math.cos(angle))*math.sin(angle)
+            ball.velocity_y += self.gravity*(1-math.cos(angle)) - ((ball.velocity_x)**2+(ball.velocity_y)**2)/self.string_length
+
         for ball in self.balls:
             ball.update(self.gravity, elapsed_time)
-
         # Симуляция натяжения в нитях, пока недоделано, неправильно работает
         for ball, initial_position in zip(self.balls, self.initial_positions):
             distance = math.sqrt(
