@@ -45,14 +45,23 @@ class NewtonsCradle:
             # Первое число задает x первого шарика, последнее число в скобках задает расстояние между шарами
             ball.x = 300 + i * (2 * self.ball_radius + 10)
             ball.y = 100 - self.beam_height + self.string_length
-        self.initial_positions = [(ball.x, ball.y) for ball in self.balls]
+            if i == 0:
+                ball.angle = -1/2
+                ##!!!! Тут я высталвлял угол пока что
         self.initial_positions_string = [(ball.x, ball.y - self.string_length) for ball in self.balls]
+        self.initial_positions = [(ball.x, ball.y) for ball in self.balls]
+
     def update(self, elapsed_time):
         for i, ball in enumerate(self.balls):
-            ball.angular_acceleration = -math.sin(ball.angle) * self.gravity/self.string_length
+            #Затухание (направления ускорения затухания зависит от направления скорости и уголового ускорения)
+            #if ball.angular_velocity*ball.angular_acceleration<0:
+                #ball.angular_acceleration = (-math.sin(ball.angle) * self.gravity / self.string_length)
+            #else:
+               # ball.angular_acceleration = (-math.sin(ball.angle) * self.gravity / self.string_length)
+            ball.angular_acceleration = -math.sin(ball.angle) * self.gravity / self.string_length
             ball.angular_velocity += ball.angular_acceleration * elapsed_time
             ball.angle += ball.angular_velocity * elapsed_time
-            ball.x = self.initial_positions[i][0] + self.string_length * math.sin(ball.angle)
+            ball.x = self.initial_positions_string[i][0] + self.string_length * math.sin(ball.angle)
             ball.y = self.initial_positions_string[i][1] + self.string_length * math.cos(ball.angle)
 
 #            ball.x += ball.velocity_x * elapsed_time
@@ -78,9 +87,13 @@ class NewtonsCradle:
     def hit(self):
         for i, ball1 in enumerate(self.balls):
             for j, ball2 in enumerate(self.balls):
-                if i < j:
+                if i<j:
                     if ball1.hittest(ball2):
-                        ball1.angular_velocity, ball2.angular_velocity = ball2.angular_velocity, ball1.angular_velocity
+                        #t - вспомогательная переменная, затухание происходит из-за потерь энергии
+                        # (скоростей) при неупргом соударении
+                        t = ball1.angular_velocity
+                        ball1.angular_velocity = ball2.angular_velocity/1.001
+                        ball2.angular_velocity = t/1.001
 
     def draw(self, screen):
         screen.fill((255, 255, 255))
@@ -88,7 +101,7 @@ class NewtonsCradle:
         # Нити, соединияющие шары и балку
         for i, ball in enumerate(self.balls):
             line_start = (ball.x, ball.y)
-            line_end = (self.initial_positions[i][0], self.initial_positions_string[i][1])
+            line_end = (self.initial_positions_string[i][0], self.initial_positions_string[i][1])
             pygame.draw.line(screen, (0, 0, 0), line_start, line_end, 2)
 
         # Рисуются сами шары
@@ -107,7 +120,7 @@ class NewtonsCradleApp:
         self.height = 600
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Newton's Cradle Simulation")
-        self.gravity = 10
+        self.gravity = 1/100
         self.newtons_cradle = NewtonsCradle(num_balls=5, ball_radius=20, string_length=250, beam_height=10, gravity=self.gravity, width=self.width, height=self.height)
         self.clock = pygame.time.Clock()
         self.running = False
@@ -123,9 +136,8 @@ class NewtonsCradleApp:
             self.handle_events()
 
             elapsed_time = self.clock.tick(60)
-
-            self.newtons_cradle.update(elapsed_time)
             self.newtons_cradle.hit()
+            self.newtons_cradle.update(elapsed_time)
             self.newtons_cradle.draw(self.screen)
 
             pygame.display.flip()
