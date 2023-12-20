@@ -23,10 +23,6 @@ class Ball:
         else:
             return False
 
-#    def draw(self, screen):
-#       """Рисуется шар"""
-#        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
-
 
 class NewtonsCradle:
     """Класс создает сам объект, рисует и обновляет общую картину, в нем прописано поведение шаров как системы"""
@@ -41,7 +37,7 @@ class NewtonsCradle:
 
         for i, ball in enumerate(self.balls):
             # Первое число задает x первого шарика, последнее число в скобках задает расстояние между шарами
-            ball.x = 325 + i * (2 * self.ball_radius + 1)
+            ball.x = 325 + i * (2 * self.ball_radius + 0)
             ball.y = 100 - self.beam_height + self.string_length
             if i <= 0:
                 ball.angle = -initial_characteristics[0]
@@ -61,16 +57,17 @@ class NewtonsCradle:
             ball.y = self.initial_positions_string[i][1] + self.string_length * math.cos(ball.angle)
 
     def hit(self):
-        """Согласно ЗСИ обновляются угловые скорости при столкновении двух соседних,
+        """Обновляются угловые скорости при столкновении двух соседних,
         включается звук столкновения"""
         for i in range(4):
             ball1 = self.balls[i]
             ball2 = self.balls[i+1]
             if ball1.hittest(ball2) and (ball1.angular_velocity - ball2.angular_velocity >= 0):
-                if ball1.angular_velocity - ball2.angular_velocity >= 0.001:
+                if ball1.angular_velocity - ball2.angular_velocity >= 0.0005:
                     pygame.mixer.music.load("be_metal_plate_surface_15801.mp3")
                     pygame.mixer.music.play(1)
-                # Вспомогательные переменные:
+                #Законы сохранения энергии и импульса
+                #Вспомогательные переменные:
                 v1 = ball1.angular_velocity
                 v2 = ball2.angular_velocity
                 ball1.angular_velocity = v1 - (v1 - v2) * (math.cos(ball1.angle)) ** 2
@@ -105,7 +102,7 @@ class NewtonsCradleApp:
         self.height = 600
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Newton's Cradle Simulation")
-        self.gravity = 0.0015
+        self.gravity = 0.002
         self.newtons_cradle = NewtonsCradle(num_balls=5, ball_radius=20, string_length=250, beam_height=10,
                                             gravity=self.gravity, width=self.width, height=self.height)
         self.clock = pygame.time.Clock()
@@ -140,6 +137,7 @@ class NewtonsCradleApp:
         color_angle = color_inactive
         color_velocity = color_inactive
         button_text = button_font.render('Start simulation', True, color_inactive)
+        #Характерные параметры: угловая скорость 0.001, угол 1 радиан
         active_angle = False
         active_velocity = False
         text_angle = ''
