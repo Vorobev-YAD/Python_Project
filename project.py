@@ -6,7 +6,7 @@ initial_characteristics = [0, 0]
 
 
 class Ball:
-    """Класс задает внешний вид шаров, проверяет столкновение"""
+    """Класс задает внешний вид шаров, проверяет столкновение с другими шарами"""
     def __init__(self, x, y, radius, color):
         self.x = x
         self.y = y
@@ -87,7 +87,7 @@ class NewtonsCradle:
         # Рисуются сами шары
         for ball in self.balls:
             screen.blit(new_ball_image, (ball.x-24, ball.y-19))
-#            ball.draw(screen)
+            # ball.draw(screen)
 
         # Рисуется балка
         pygame.draw.rect(screen, (0, 0, 0), (150, 100 - self.beam_height, 500, self.beam_height))
